@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "683150991964",
+    "project_id": "ecommerce-f6560",
+    "storage_bucket": "ecommerce-f6560.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:683150991964:android:774a9d1297cebc591d3c99",
+        "android_client_info": {
+          "package_name": "com.example.mamushi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPtWS73yDPxS1DgfSiez6qF4ojry5J9Wo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
