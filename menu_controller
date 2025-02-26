@@ -1,0 +1,149 @@
+menu1
+
+import 'package:flutter/material.dart';
+import '../models/menu_model.dart';
+import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/login/components/login_screen.dart';
+import '../screens/login/login_screen.dart';
+import '../screens/orders/orders_screen.dart';
+import '../screens/products/products_screen.dart';
+import 'auth_controller.dart';
+import 'orders_controller.dart';
+import 'product_controller.dart';
+
+class MenuController extends ChangeNotifier {
+  int currentSelectedIndex = 0;
+
+  //final AuthController? _authController;
+  final OrdersController _ordersController;
+  final ProductController _productController;
+
+
+
+  MenuController(
+      //this._authController,
+      this._ordersController,
+      this._productController,
+      ) {
+    buildMenu();
+    // Listen to authentication state changes
+    //_authController?.addListener(onAuthStateChanged);
+  }
+
+  // Menu items for authenticated and unauthenticated users
+  final List<MenuModel> _offlineMenuItems = [
+    MenuModel("Login", "assets/icons/menu_login.svg", isSelected: false),
+  ];
+
+  final List<MenuModel> _authenticatedMenuItems = [
+    MenuModel("Dashboard", "assets/icons/menu_dashbord.svg", isSelected: true),
+    MenuModel("Orders", "assets/icons/menu_tran.svg", isSelected: false),
+    MenuModel("Products", "assets/icons/menu_task.svg", isSelected: false),
+    MenuModel("Logout", "assets/icons/menu_logout.svg", isSelected: false),
+  ];
+
+  // Screens for authenticated and unauthenticated users
+  List<Widget> _offlineScreens = [];
+  List<Widget> _authenticatedScreens = [];
+
+  // Titles for screens
+  final List<String> _offlineScreenTitles = ['Login'];
+  final List<String> _authenticatedScreenTitles = [
+    'Dashboard',
+    'Orders',
+    'Products',
+  ];
+
+  // Current menu items, screens, and titles
+  List<MenuModel> menuItems = [];
+  List<Widget> screens = [];
+  List<String> screenTitles = [];
+
+  // Build the menu based on authentication status
+  void buildMenu() {
+    if (_authController == null || _authController!.currentuserModel == null) {
+      // Unauthenticated state
+      menuItems = _offlineMenuItems;
+      screens = [
+        LoginScreen(
+          authController: _authController!,
+          menuController: this,
+        ),
+      ];
+      screenTitles = _offlineScreenTitles;
+    } else {
+      // Authenticated state
+      menuItems = _authenticatedMenuItems;
+      screens = [
+        DashboardScreen(
+          ordersController: _ordersController,
+          menuController: this,
+        ),
+        OrdersScreen(
+          ordersController: _ordersController,
+          menuController: this,
+        ),
+        ProductScreen(
+          productController: _productController,
+        ),
+      ];
+      screenTitles = _authenticatedScreenTitles;
+    }
+
+    // Ensure currentSelectedIndex is within bounds
+    if (currentSelectedIndex >= screenTitles.length) {
+      currentSelectedIndex = 0; // Reset to the first item if out of bounds
+    }
+
+    notifyListeners();
+  }
+
+  // Change the selected menu item
+  void onChangeSelectedMenu(int index) {
+    if (index < 0 || index >= menuItems.length) {
+      return; // Do nothing if the index is out of bounds
+    }
+
+    for (int i = 0; i < menuItems.length; i++) {
+      menuItems[i].isselected = (i == index);
+    }
+    currentSelectedIndex = index;
+    notifyListeners();
+  }
+
+  // Global keys for scaffold state
+  final GlobalKey<ScaffoldState> mainScaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> viewOrderScaffoldKey = GlobalKey<ScaffoldState>();
+
+  // Control the main drawer
+  void controlMainMenu() {
+    if (!mainScaffoldKey.currentState!.isDrawerOpen) {
+      mainScaffoldKey.currentState!.openDrawer();
+    }
+  }
+
+  // Control the view order drawer
+  void controlViewOrderMenu() {
+    if (!viewOrderScaffoldKey.currentState!.isDrawerOpen) {
+      viewOrderScaffoldKey.currentState!.openDrawer();
+    }
+  }
+
+  // Handle authentication state changes
+  void onAuthStateChanged() {
+    buildMenu(); // Rebuild the menu when authentication state changes
+  }
+
+  // Getter for scaffold key
+  GlobalKey<ScaffoldState> get getscaffoldKey => mainScaffoldKey;
+
+  // Getter for menuModelList (used in SideMenu)
+  List<MenuModel> get menuModelList => menuItems;
+
+  // Dispose method to clean up listeners
+  //@override
+  //void dispose() {
+    //_authController?.removeListener(onAuthStateChanged);
+    //super.dispose();
+  //}
+}
