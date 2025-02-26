@@ -1,0 +1,64 @@
+import 'package:flutter/material.dart' as material;
+import '../../controllers/auth_controller.dart';
+import '../../controllers/menu_controller.dart';
+import '../../shared/constants.dart';
+import '../../shared/responsive.dart';
+import '../dashboard/components/header.dart';
+import 'components/side_menu.dart';
+
+class MainScreen extends material.StatelessWidget {
+  final AuthController authController;
+  final MenuController menuController;
+
+  const MainScreen({
+    required this.authController,
+    required this.menuController,
+  });
+
+  @override
+  material.Widget build(material.BuildContext context) {
+    return material.Scaffold(
+      key: menuController.getscaffoldKey,
+      drawer: SideMenu(
+        authController: authController,
+        menuController: menuController,
+      ),
+      body: material.SafeArea(
+        child: material.Row(
+          crossAxisAlignment: material.CrossAxisAlignment.stretch,
+          children: [
+            // Show side menu only for large screens
+            if (Responsive.isDesktop(context))
+              material.Expanded(
+                child: SideMenu(
+                  authController: authController,
+                  menuController: menuController,
+                ),
+              ),
+            material.Expanded(
+              flex: 5,
+              child: material.Padding(
+                padding: const material.EdgeInsets.all(defaultPadding),
+                child: material.SingleChildScrollView(
+                  controller: material.ScrollController(),
+                  child: material.Column(
+                    children: [
+                      if (authController.currentuserModel != null)
+                        Header(
+                          onMenuPressed: () {
+                            menuController.controlMainMenu();
+                          }, menuController: menuController, authController: authController,
+                        ),
+                      material.SizedBox(height: defaultPadding),
+                      menuController.screens[menuController.currentSelectedIndex],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
