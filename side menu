@@ -1,0 +1,97 @@
+import 'package:flutter/material.dart' as material;
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../../controllers/auth_controller.dart';
+import '../../../controllers/menu_controller.dart';
+import '../../../models/menu_model.dart';
+import '../../../shared/constants.dart';
+import '../../../shared/responsive.dart';
+
+class SideMenu extends material.StatelessWidget {
+  final AuthController authController;
+  final MenuController menuController;
+
+  const SideMenu({
+    material.Key? key,
+    required this.authController,
+    required this.menuController,
+  }) : super(key: key);
+
+  @override
+  material.Widget build(material.BuildContext context) {
+    return material.Drawer(
+      child: material.ListView(
+        children: [
+          // Drawer Header with Logo
+          material.DrawerHeader(
+            child: material.Image.asset("assets/images/logo.png"),
+          ),
+          // Drawer List Items
+          DrawerListTile(
+            listOfModel: menuController.menuModelList,
+            authController: authController,
+            menuController: menuController,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DrawerListTile extends material.StatelessWidget {
+  final List<MenuModel> listOfModel;
+  final AuthController authController;
+  final MenuController menuController;
+
+  const DrawerListTile({
+    material.Key? key,
+    required this.listOfModel,
+    required this.authController,
+    required this.menuController,
+  }) : super(key: key);
+
+  @override
+  material.Widget build(material.BuildContext context) {
+    return material.Column(
+      children: listOfModel.map((menuItem) {
+        return material.InkWell(
+          onTap: () async {
+            if (menuItem.title == "Logout") {
+              // Handle logout
+              await authController.SignOut();
+              menuController.buildMenu();
+            } else {
+              // Handle menu item selection
+              menuController.onChangeSelectedMenu(listOfModel.indexOf(menuItem));
+
+              // Close the drawer on mobile devices
+              if (Responsive.isMobile(context) ||
+                  Responsive.isBigMobile(context) ||
+                  Responsive.isTablet(context)) {
+                material.Navigator.pop(context);
+              }
+            }
+          },
+          child: material.Container(
+            color: menuItem.isselected!
+                ? material.Colors.grey.withOpacity(0.3)
+                : secondaryColor,
+            child: material.ListTile(
+              selected: menuItem.isselected!,
+              selectedColor: material.Colors.grey.shade400,
+              horizontalTitleGap: 0.0,
+              leading: SvgPicture.asset(
+                menuItem.svgSrc!,
+                color: material.Colors.white54,
+                height: 16,
+              ),
+              title: material.Text(
+                menuItem.title!,
+                style: material.TextStyle(color: material.Colors.white54),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
