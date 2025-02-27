@@ -1,0 +1,320 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import '../db/auth.dart';
+import '../db/users.dart';
+import 'main.dart';
+
+class Signup extends StatefulWidget {
+  @override
+  State<Signup> createState() => _SignupState();
+}
+
+class _SignupState extends State<Signup> {
+  final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
+  final _formKey = GlobalKey<FormState>();
+  UserServices _userServices = UserServices();
+  TextEditingController _emailTextController = TextEditingController();
+  TextEditingController _passwordTextController = TextEditingController();
+  TextEditingController _confirmPasswordController = TextEditingController();
+  TextEditingController _nameTextController = TextEditingController();
+  late String gender;
+  bool hidePass = true;
+  String groupValue = 'male';
+  bool loading = false;
+  Auth auth = Auth();
+
+  @override
+  void initState() {
+    super.initState();
+    gender = 'male';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.blue,
+        centerTitle: true,
+        title: const Text(
+          'Sign Up',
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+      body: Stack(
+        children: [
+          Padding(
+              padding: const EdgeInsets.only(top: 0.0),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Name Field
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Material(
+                            borderRadius: BorderRadius.circular(20.0),
+                            color: Colors.grey.withOpacity(0.5),
+                            child: TextFormField(
+                              decoration: InputDecoration(
+                                labelText: "Name *",
+                                hintText: "Name",
+                                icon: Icon(Icons.person),
+                                border: InputBorder.none,
+                              ),
+                              controller: _nameTextController,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Name cannot be empty";
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ),
+                        // Email Field
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Material(
+                            borderRadius: BorderRadius.circular(20.0),
+                            color: Colors.grey.withOpacity(0.5),
+                            child: TextFormField(
+                              decoration: InputDecoration(
+                                labelText: "Email *",
+                                hintText: "Email",
+                                icon: Icon(Icons.alternate_email),
+                                border: InputBorder.none,
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                              controller: _emailTextController,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter an email address';
+                                }
+                                Pattern pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
+                                RegExp regex = RegExp(pattern as String);
+                                if (!regex.hasMatch(value)) {
+                                  return 'Please enter a valid email address';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ),
+                        // Gender Selection
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ListTile(
+                                title: Text(
+                                  "Male",
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                                trailing: Radio(
+                                  value: "male",
+                                  groupValue: groupValue,
+                                  onChanged: (e) => valueChanged(e),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: ListTile(
+                                title: Text(
+                                  "Female",
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                                trailing: Radio(
+                                  value: "female",
+                                  groupValue: groupValue,
+                                  onChanged: (e) => valueChanged(e),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Password Field
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Material(
+                            borderRadius: BorderRadius.circular(20.0),
+                            color: Colors.white.withOpacity(0.5),
+                            child: ListTile(
+                              title: TextFormField(
+                                obscureText: hidePass,
+                                decoration: InputDecoration(
+                                  labelText: "Password *",
+                                  hintText: "Password",
+                                  icon: Icon(Icons.lock_outlined),
+                                  border: InputBorder.none,
+                                ),
+                                controller: _passwordTextController,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Password cannot be empty";
+                                  } else if (value.length < 6) {
+                                    return "Password must be at least 6 characters";
+                                  }
+                                  return null;
+                                },
+                              ),
+                              trailing: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    hidePass = !hidePass;
+                                  });
+                                },
+                                icon: Icon(hidePass ? Icons.visibility_off : Icons.visibility),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Confirm Password Field
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Material(
+                            borderRadius: BorderRadius.circular(20.0),
+                            color: Colors.white.withOpacity(0.5),
+                            child: ListTile(
+                              title: TextFormField(
+                                obscureText: hidePass,
+                                decoration: InputDecoration(
+                                  labelText: "Confirm Password *",
+                                  hintText: "Confirm Password",
+                                  icon: Icon(Icons.lock_outlined),
+                                  border: InputBorder.none,
+                                ),
+                                controller: _confirmPasswordController,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return "Confirm password cannot be empty";
+                                  } else if (value.length < 6) {
+                                    return "Password must be at least 6 characters";
+                                  } else if (_passwordTextController.text != value) {
+                                    return "Passwords do not match";
+                                  }
+                                  return null;
+                                },
+                              ),
+                              trailing: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    hidePass = !hidePass;
+                                  });
+                                },
+                                icon: Icon(hidePass ? Icons.visibility_off : Icons.visibility),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Sign Up Button
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Material(
+                            borderRadius: BorderRadius.circular(20.0),
+                            color: Colors.red,
+                            child: MaterialButton(
+                              onPressed: () async {
+                                await validateForm();
+                              },
+                              minWidth: MediaQuery.of(context).size.width,
+                              child: Text(
+                                "Sign Up",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 22.0),
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Login Link
+                        Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Text(
+                              "Already have an account? Login",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // Loading Indicator
+          if (loading)
+            Center(
+              child: Container(
+                color: Colors.white.withOpacity(0.8),
+                child: const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void valueChanged(e) {
+    setState(() {
+      groupValue = e;
+      gender = e;
+    });
+  }
+
+  Future<void> validateForm() async {
+    FormState? formState = _formKey.currentState;
+    if (formState == null || !formState.validate()) {
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      UserCredential userCredential = await firebaseAuth.createUserWithEmailAndPassword(
+        email: _emailTextController.text,
+        password: _passwordTextController.text,
+      );
+
+      User newUser = userCredential.user!;
+
+      await _userServices.createUser(
+        newUser.uid,
+        {
+          "username": _nameTextController.text,
+          "email": newUser.email,
+          "userId": newUser.uid,
+          "gender": gender,
+        },
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
+    } catch (err) {
+      print('Error: $err');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${err.toString()}')),
+      );
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+}
