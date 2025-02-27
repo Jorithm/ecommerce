@@ -1,0 +1,480 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // Add Supabase package
+import 'category.dart';
+import 'brand.dart';
+import 'product.dart';
+
+class AddProducts extends StatefulWidget {
+  const AddProducts({super.key});
+
+  @override
+  State<AddProducts> createState() => _AddProductsState();
+}
+
+class _AddProductsState extends State<AddProducts> {
+  final SupabaseClient supabase = SupabaseClient(
+     'https://tdmzbocnbglsqwzkrmng.supabase.co', // Replace with your Supabase URL
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkbXpib2NuYmdsc3F3emtybW5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA1ODYyNjEsImV4cCI6MjA1NjE2MjI2MX0.omOURJWaL35sG2ZZmzhvmJ5CcvcAnLDcDEqWm-4y0eE', // Replace with your Supabase API key
+  );
+
+  CategoryService _categoryService = CategoryService();
+  BrandService _brandService = BrandService();
+  ProductService _productService = ProductService();
+  GlobalKey<FormState> _formKey = GlobalKey();
+  TextEditingController productNameController = TextEditingController();
+  TextEditingController quantityController = TextEditingController();
+  TextEditingController priceController = TextEditingController();
+  List<DocumentSnapshot> brands = [];
+  List<DocumentSnapshot> categories = [];
+  List<DropdownMenuItem<String>> categoriesDropDown = [];
+  List<DropdownMenuItem<String>> brandsDropDown = [];
+  List<String> selectedSizes = [];
+  List<String> availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  String _currentCategory = 'Select a category';
+  String _currentBrand = 'Select a brand';
+  bool _isLoading = false;
+  File? _image;
+  File? _image1;
+  File? _image2;
+
+  @override
+  void initState() {
+    super.initState();
+    _getCategories();
+    _getBrands();
+  }
+
+  // Fetch categories from Firestore
+  _getCategories() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      List<DocumentSnapshot> data = await _categoryService.getCategories();
+      setState(() {
+        categories = data;
+        categoriesDropDown = getDropdownItems(categories, 'category', 'Category');
+        if (categoriesDropDown.isNotEmpty) {
+          _currentCategory = categoriesDropDown[0].value!;
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching categories: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Fetch brands from Firestore
+  _getBrands() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      List<DocumentSnapshot> data = await _brandService.getBrands();
+      setState(() {
+        brands = data;
+        brandsDropDown = getDropdownItems(brands, 'brand', 'Brand');
+        if (brandsDropDown.isNotEmpty) {
+          _currentBrand = brandsDropDown[0].value!;
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching brands: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  // Generate dropdown items
+  List<DropdownMenuItem<String>> getDropdownItems(List<DocumentSnapshot> data, String fieldName, String prefix) {
+    return data.map((DocumentSnapshot item) {
+      String name = item[fieldName] ?? 'Unknown';
+      return DropdownMenuItem<String>(
+        value: name,
+        child: Text('$prefix: $name'),
+      );
+    }).toList();
+  }
+
+  // Handle category selection
+  void changeSelectedCategory(String? selectedCategory) {
+    setState(() {
+      _currentCategory = selectedCategory ?? 'Select a category';
+    });
+  }
+
+  // Handle brand selection
+  void changeSelectedBrand(String? selectedBrand) {
+    setState(() {
+      _currentBrand = selectedBrand ?? 'Select a brand';
+    });
+  }
+
+  // Validate and upload function
+  void validateAndUpload() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      if (_image == null || _image1 == null || _image2 == null) {
+        Fluttertoast.showToast(msg: "All images must be provided");
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (selectedSizes.isEmpty) {
+        Fluttertoast.showToast(msg: "Select at least one size");
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      try {
+        // Show loading dialog
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text("Uploading images..."),
+                ],
+              ),
+            );
+          },
+        );
+
+        // Upload images to Supabase Storage and get URLs
+        String imageUrl = await uploadImageToSupabase(_image!, 'image1.jpg');
+        String imageUrl1 = await uploadImageToSupabase(_image1!, 'image2.jpg');
+        String imageUrl2 = await uploadImageToSupabase(_image2!, 'image3.jpg');
+
+        List<String> imageList = [imageUrl, imageUrl1, imageUrl2];
+
+        // Call the ProductService to upload product details to Firebase
+        await _productService.uploadProduct(
+          productName: productNameController.text,
+          quantity: int.parse(quantityController.text),
+          brand: _currentBrand,
+          category: _currentCategory,
+          sizes: selectedSizes,
+          Images: imageList,
+          price: double.parse(priceController.text),
+        );
+
+        print("Product added to Firestore!");
+        Fluttertoast.showToast(msg: "Product added successfully!");
+      } catch (e) {
+        print("Error uploading product: $e");
+        Fluttertoast.showToast(msg: "Error uploading product: $e");
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
+        Navigator.of(context).pop(); // Close loading dialog
+      }
+    }
+  }
+  // Upload image to Supabase Storage
+  Future<String> uploadImageToSupabase(File image, String fileName) async {
+    try {
+      print("Attempting to upload image: $fileName");
+
+      // Check if the file exists
+      if (!image.existsSync()) {
+        throw Exception("File does not exist: ${image.path}");
+      }
+
+      // Upload the image to Supabase Storage
+      final response = await supabase.storage
+          .from('product_images') // Replace with your bucket name
+          .upload(fileName, image);
+
+      print("Image uploaded successfully: $fileName");
+
+      // Get the public URL of the uploaded image
+      final String imageUrl = supabase.storage
+          .from('product_images')
+          .getPublicUrl(fileName);
+
+      print("Image URL: $imageUrl");
+
+      return imageUrl;
+    } catch (e) {
+      print("Error uploading image to Supabase: $e");
+      throw Exception("Failed to upload image to Supabase: $e");
+    }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: Text("Add Products"),
+      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                // Image Buttons Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _selectImage(ImageSource.gallery, 1);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.blue),
+                          ),
+                          child: displayImage(_image),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _selectImage(ImageSource.gallery, 2);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.blue),
+                          ),
+                          child: displayImage(_image1),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _selectImage(ImageSource.gallery, 3);
+                        },
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: Container(
+                          height: 150,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.blue),
+                          ),
+                          child: displayImage(_image2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // Product Name Field
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    "Enter product name (max 20 letters)",
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 20.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextFormField(
+                    controller: productNameController,
+                    decoration: InputDecoration(hintText: 'Product Name'),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Enter a product name";
+                      } else if (value.length > 20) {
+                        return "Product name can't have more than 20 letters";
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                // Category and Brand Dropdowns
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: DropdownButton<String>(
+                          value: _currentCategory,
+                          items: categoriesDropDown,
+                          onChanged: changeSelectedCategory,
+                          isExpanded: true,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: DropdownButton<String>(
+                          value: _currentBrand,
+                          items: brandsDropDown,
+                          onChanged: changeSelectedBrand,
+                          isExpanded: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                // Quantity Field
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextFormField(
+                    controller: quantityController,
+                    decoration: InputDecoration(hintText: 'Quantity'),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Enter a quantity";
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                // Price Field
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextFormField(
+                    controller: priceController,
+                    decoration: InputDecoration(hintText: 'Price'),
+                    keyboardType: TextInputType.number,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Enter a price";
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+                // Available Sizes
+                Column(
+                  children: [
+                    Text(
+                      "Available sizes",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.blue,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    Wrap(
+                      children: availableSizes.map((size) {
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: selectedSizes.contains(size),
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  if (value == true) {
+                                    selectedSizes.add(size);
+                                  } else {
+                                    selectedSizes.remove(size);
+                                  }
+                                });
+                              },
+                            ),
+                            Text(size),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+                // Add Product Button
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ElevatedButton(
+                    onPressed: validateAndUpload,
+                    child: Text("Add Product"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _selectImage(ImageSource source, int imageNumber) async {
+    final pickedFile = await ImagePicker().pickImage(source: source);
+    if (pickedFile != null) {
+      File tempImage = File(pickedFile.path);
+      setState(() {
+        switch (imageNumber) {
+          case 1:
+            _image = tempImage;
+            break;
+          case 2:
+            _image1 = tempImage;
+            break;
+          case 3:
+            _image2 = tempImage;
+            break;
+        }
+      });
+    }
+  }
+
+  Widget displayImage(File? image) {
+    return image == null
+        ? Icon(Icons.add, color: Colors.blue)
+        : Image.file(
+      image,
+      fit: BoxFit.fill,
+      width: double.infinity,
+    );
+  }
+}
