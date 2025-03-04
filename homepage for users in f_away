@@ -1,0 +1,173 @@
+import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:futher_away/components/horizontal_listview.dart';
+import 'package:futher_away/pages/cart.dart';
+import '../components/products.dart';
+import 'logout.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+ // TextEditingController _search
+  final Logout _logout = Logout();
+  @override
+  Widget build(BuildContext context) {
+    Widget imageCarousel = SizedBox(
+      height: 200.0,
+      child: CarouselSlider(
+        items: [
+          Image.asset('assets/images/ex1.jpeg', fit: BoxFit.cover),
+          Image.asset('assets/images/ex.jpeg', fit: BoxFit.cover),
+          Image.asset('assets/images/download.jpeg', fit: BoxFit.cover),
+        ],
+        options: CarouselOptions(
+          height: 300.0,
+          enlargeCenterPage: true,
+         // autoPlay: true,
+         // autoPlayInterval: Duration(seconds: 5),
+          //autoPlayAnimationDuration: Duration(milliseconds: 1500),
+        ),
+      ),
+    );
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'VISA',
+          style: TextStyle(color: Colors.white, fontSize: 35.0),
+        ),
+        backgroundColor: Colors.blue,
+        actions: [
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(
+              Icons.search,
+              color: Colors.white,
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (context) => const Cart()));
+            },
+            icon: const Icon(
+              Icons.shopping_cart,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+      drawer: myDrawer(),
+
+      body: Column(
+        children: [
+          imageCarousel,
+          const Padding(
+            padding: EdgeInsets.all(10.0),
+            child: Text(
+              'Categories',
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const HorizontalList(),
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              'Recent products',
+              style: TextStyle(fontSize: 20.0),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const Flexible(
+            child: Products(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  ListTile _buildDrawerItem(
+      {required String title, required IconData icon, Color? color, required VoidCallback onTap}) {
+    return ListTile(
+      title: Text(title),
+      leading: Icon(icon, color: color),
+      onTap: onTap,
+    );
+  }
+  Drawer myDrawer(){
+    return   Drawer(
+    child: ListView(
+    children: [
+    UserAccountsDrawerHeader(
+    accountName: const Text('mirai nikki'),
+    accountEmail: const Text('mn@gmail.com'),
+    currentAccountPicture: GestureDetector(
+    child: CircleAvatar(
+    backgroundColor: Colors.grey,
+    child: Icon(Icons.person),
+    ),
+    ),
+    decoration: const BoxDecoration(color: Colors.redAccent),
+    ),
+    _buildDrawerItem(
+    title: 'HomePage',
+    icon: Icons.home,
+    color: Colors.blue,
+    onTap: () {},
+    ),
+    _buildDrawerItem(
+    title: 'My account',
+    icon: Icons.person_2,
+    onTap: () {},
+    ),
+    _buildDrawerItem(
+    title: 'My orders',
+    icon: Icons.shopping_basket_sharp,
+    color: Colors.blueGrey,
+    onTap: () {},
+    ),
+    _buildDrawerItem(
+    title: 'Shopping cart',
+    icon: Icons.shopping_cart,
+    color: Colors.green,
+    onTap: () {
+    Navigator.push(context,
+    MaterialPageRoute(builder: (context) => const Cart()));
+    },
+    ),
+    _buildDrawerItem(
+    title: 'Favorites',
+    icon: Icons.favorite,
+    color: Colors.pink,
+    onTap: () {},
+    ),
+    const Divider(),
+    _buildDrawerItem(
+    title: 'Setting',
+    icon: Icons.settings,
+    onTap: () {},
+    ),
+    _buildDrawerItem(
+    title: 'About',
+    icon: Icons.help,
+    color: Colors.blue,
+    onTap: () {},
+    ),
+    _buildDrawerItem(
+    title: 'logout',
+    icon: Icons.logout,
+    color: Colors.blue,
+    onTap: () async{
+    await _logout.handleSignOut(context);
+    },
+    ),
+    ],
+    ),
+    );
+  }
+}
+
